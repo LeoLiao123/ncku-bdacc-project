@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deceptive Text Detector</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Deceptive Text Detector</h1>
+        <textarea id="textInput" placeholder="Enter text here..."></textarea>
+        <button id="detectButton">Detect Deceptive Text</button>
+        <div id="resultArea">
+            <h2>Result</h2>
+            <p>Deceptive Probability: <span id="spamPercentage">--</span>%</p>
+            <p>Deceptive Likelihood: <span id="spamProbabilityDescription">--</span></p>
+            <p>Word Count: <span id="wordCount">--</span></p>
+        </div>
+        <div id="loadingIndicator" style="display: none;">Analyzing, please wait...</div>
+        <div id="errorArea" style="display: none; color: red;"></div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
