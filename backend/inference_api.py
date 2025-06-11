@@ -238,5 +238,3 @@ async def detect_spam(item: TextInput):
 if __name__ == "__main__":
     print("To run this application, use Uvicorn: uvicorn fastapi_inference_app:app --reload")
     print(f"Using device: {device}")
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
