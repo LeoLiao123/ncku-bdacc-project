@@ -4,6 +4,8 @@ A web-based system for detecting deceptive text using a PosAtt-BiLSTM model with
 
 ## Quick Start
 
+Note : Please clone the repository and navigate to the project directory.
+
 ### Backend Setup
 
 ```bash
