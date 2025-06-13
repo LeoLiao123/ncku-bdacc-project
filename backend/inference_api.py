@@ -47,6 +47,12 @@ DEFAULT_MAX_LEN = 500
 
 # --- Global Variables ---
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {device}")
+if device.type == 'cuda':
+    print(f"GPU detected: {torch.cuda.get_device_name(0)}")
+else:
+    print("No GPU detected, using CPU for inference")
+
 # Cache loaded models and vocabularies: key is (model_path, data_path)
 loaded_models_vocabs: Dict[Tuple[str, str], Tuple[PosAttBiLSTM, Dict[str, int]]] = {}
 
@@ -101,7 +107,7 @@ class PredictionOutput(BaseModel):
     attention_weights: List[float]  # Attention weights for each word
     processed_tokens_for_attention: List[str]  # Tokens corresponding to attention_weights
 
-def extract_suspicious_keywords(tokens: List[str], attention_weights: List[float], threshold: float = 0.1) -> List[Dict[str, float]]:
+def extract_suspicious_keywords(tokens: List[str], attention_weights: List[float], threshold: float = 0.9) -> List[Dict[str, float]]:
     """Extract keywords with high attention weights as suspicious."""
     if len(tokens) != len(attention_weights):
         # Pad or truncate to match
@@ -145,7 +151,7 @@ def _load_model_and_vocab_from_path(model_path: str, data_path: str) -> Tuple[Po
     if '<PAD>' not in current_vocab or '<UNK>' not in current_vocab:
         raise ValueError("'<PAD>' or '<UNK>' missing from vocabulary.")
 
-    print(f"Initializing model structure (importing PosAttBiLSTM)...")
+    print(f"Initializing model structure on device: {device}...")
     current_model = PosAttBiLSTM(
         vocab_size=len(current_vocab),
         embedding_dim=EMBEDDING_DIM,
@@ -173,6 +179,7 @@ def _load_model_and_vocab_from_path(model_path: str, data_path: str) -> Tuple[Po
         else:
             current_model.load_state_dict(checkpoint)
             print("Model state_dict loaded directly.")
+        print(f"Model successfully loaded on {device}")
     except Exception as e:
         raise RuntimeError(f"Error loading model state_dict from {model_path}: {e}. "
                            f"Ensure DROPOUT ({DROPOUT}) and HIDDEN_DIM ({HIDDEN_DIM}) in this script "
@@ -217,7 +224,6 @@ async def detect_spam(item: TextInput):
         current_model.eval()
         processed_text_str = preprocess_text(item.text)
         tokens = processed_text_str.split()
-        print(f"Processed text tokens: {tokens} (count: {len(tokens)})")
         original_tokens_for_attention = tokens.copy()
         token_ids = [current_vocab.get(token, current_vocab['<UNK>']) for token in tokens]
 
@@ -265,8 +271,6 @@ async def detect_spam(item: TextInput):
             threshold=0.9
         )
         
-        print(f"Suspicious Keywords: {suspicious_keywords}")
-        
         final_attention_weights = attention_weights[:len(original_tokens_for_attention)].tolist()
         
         return PredictionOutput(
@@ -307,5 +311,7 @@ async def detect_spam(item: TextInput):
 if __name__ == "__main__":
     print("To run this application, use: uvicorn inference_api:app --reload")
     print(f"Using device: {device}")
-    print("To run this application, use Uvicorn: uvicorn fastapi_inference_app:app --reload")
-    print(f"Using device: {device}")
+    if device.type == 'cuda':
+        print("GPU acceleration enabled")
+    else:
+        print("Running on CPU - inference may be slower but will work correctly")
