@@ -27,17 +27,3 @@ uvicorn inference_api:app --reload --host 0.0.0.0 --port 8000
     *   Deceptive probability percentage
     *   Suspicious keywords with attention scores
     *   Text visualization with attention highlighting
-
-## API
-
-Backend API available at `http://localhost:8000/docs` for direct integration.
-
-POST `/detect_spam`:
-
-```json
-{
-  "text": "Your text here"
-}
-```
-
-Returns deceptive probability, word analysis, and attention weights.
