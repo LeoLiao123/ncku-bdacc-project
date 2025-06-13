@@ -353,7 +353,7 @@ def main():
     df = pd.read_csv(args.data_path)
     
     texts = df['text'].apply(preprocess_text).values
-    labels = (df['deceptive'] == 'deceptive').astype(int).values
+    labels = (df['deceptive'] == 'deceptive').astype(int).astype(int).values
     
     vocab = build_vocab(texts)
     print(f'Vocabulary size: {len(vocab)}')
