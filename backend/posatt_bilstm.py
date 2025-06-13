@@ -125,50 +125,45 @@ class PosAttBiLSTM(nn.Module):
         # Dimension for BiLSTM output
         lstm_output_dim = hidden_dim * 2 if bidirectional else hidden_dim
         
-        # Dimension reduction layer after BiLSTM (as mentioned in the paper)
+        # Dimension reduction layer after BiLSTM
         self.dim_reduction = nn.Linear(lstm_output_dim, hidden_dim)
         
         # Hybrid attention mechanism layer 
         self.hybrid_attention = HybridAttentionMechanism(hidden_dim, local_window_size=30)
         
-        # 修改最終分類層以適應連接池化的輸出維度
-        self.fc = nn.Linear(hidden_dim * 2, output_dim)  # 現在是hidden_dim*2因為我們連接了兩個池化結果
+        # Final classification layer with concatenated pooling
+        self.fc = nn.Linear(hidden_dim * 2, output_dim)
         
         self.dropout = nn.Dropout(dropout)
         
-        # 添加批量正規化
-        self.bn = nn.BatchNorm1d(hidden_dim * 2)  # 在初始化時需更新
+        # Batch normalization
+        self.bn = nn.BatchNorm1d(hidden_dim * 2)
         
-        # 應用權重初始化
+        # Apply weight initialization
         self._init_weights()
         
     def _init_weights(self):
-        """初始化模型權重以加速收斂"""
+        """Initialize model weights for faster convergence"""
         for name, param in self.named_parameters():
             if 'weight' in name:
                 if 'lstm' in name:
-                    # LSTM權重使用正交初始化
                     nn.init.orthogonal_(param)
-                elif len(param.shape) >= 2:  # 確保參數至少是2維的
-                    # 線性層使用xavier初始化，只對至少2維的參數使用
+                elif len(param.shape) >= 2:
                     nn.init.xavier_uniform_(param)
                 else:
-                    # 對於1維權重，使用均勻分佈初始化
                     nn.init.uniform_(param, -0.1, 0.1)
             elif 'bias' in name:
                 nn.init.zeros_(param)
                 
     def forward(self, text):
-        # Word embedding layer
-        embedded = self.embedding(text)  # [batch_size, seq_len, embedding_dim]
+        # Word embedding
+        embedded = self.embedding(text)
         
-        # Add positional encoding - NN-SPE
+        # Add positional encoding
         embedded = self.pos_encoding(embedded)
-        
-        # Apply dropout
         embedded = self.dropout(embedded)
         
-        # BiLSTM layer
+        # BiLSTM
         output, (hidden, cell) = self.bilstm(embedded)
         
         # Dimension reduction
@@ -177,22 +172,12 @@ class PosAttBiLSTM(nn.Module):
         # Apply hybrid attention
         attended = self.hybrid_attention(reduced_output)
         
-        # 實現論文中的最大池化和平均池化結合
-        # 1. 最大池化 - 捕捉最突出的特徵
-        max_pooled = torch.max(attended, dim=1)[0]  # [batch_size, hidden_dim]
+        # Max and mean pooling combination
+        max_pooled = torch.max(attended, dim=1)[0]
+        mean_pooled = torch.mean(attended, dim=1)
+        pooled = torch.cat([max_pooled, mean_pooled], dim=1)
         
-        # 2. 平均池化 - 捕捉整體特徵分佈
-        mean_pooled = torch.mean(attended, dim=1)  # [batch_size, hidden_dim]
-        
-        # 3. 連接兩種池化結果
-        pooled = torch.cat([max_pooled, mean_pooled], dim=1)  # [batch_size, hidden_dim*2]
-        
-        # 應用批量正規化 - 需要調整 bn 層的維度
+        # Batch normalization
         pooled = self.bn(pooled)
         
-        # 刪除或注釋掉原來的注意力加權池化代碼:
-        # attention_weights = torch.softmax(torch.sum(attended, dim=2), dim=1).unsqueeze(2)
-        # pooled = torch.sum(attended * attention_weights, dim=1)
-        
-        # Final classification
         return self.fc(pooled)

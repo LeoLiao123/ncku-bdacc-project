@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const textVisualization = document.getElementById('textVisualization');
     const highlightedText = document.getElementById('highlightedText');
 
-    // Backend API URL
     const backendUrl = 'http://localhost:8000/detect_spam';
 
     function displaySuspiciousKeywords(keywords) {
@@ -25,8 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 keywordElement.className = 'keyword-tag';
                 keywordElement.textContent = `${word} (${(score * 100).toFixed(1)}%)`;
                 
-                // Color intensity based on score
-                const intensity = Math.min(score * 2, 1); // Scale for better visibility
+                const intensity = Math.min(score * 2, 1);
                 keywordElement.style.backgroundColor = `rgba(255, 99, 71, ${intensity})`;
                 keywordElement.style.color = intensity > 0.5 ? 'white' : 'black';
                 
@@ -51,10 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (attentionWeights && i < attentionWeights.length) {
                 const weight = attentionWeights[i];
-                // Ensure weight is a number and not NaN
                 const validWeight = (typeof weight === 'number' && !isNaN(weight)) ? weight : 0;
                 
-                // Only highlight if this specific token's attention weight exceeds threshold
                 if (validWeight > attentionThreshold) {
                     const intensity = Math.min(validWeight, 1); 
                     backgroundColor = `rgba(255, 99, 71, ${intensity * 0.7})`;
@@ -75,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Clear previous results and errors
+        // Clear previous results
         spamPercentageSpan.textContent = '--';
         wordCountSpan.textContent = '--';
         errorArea.textContent = '';
@@ -107,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             spamPercentageSpan.textContent = (result.spam_probability * 100).toFixed(2);
             wordCountSpan.textContent = result.word_count;
 
-            // Determine spam probability
+            // Determine probability description
             let description = '';
             if (result.spam_probability >= 0.5) {
                 description = 'High probability';
@@ -121,12 +117,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             spamProbabilityDescription.textContent = description;
 
-            // Display suspicious keywords
             displaySuspiciousKeywords(result.suspicious_keywords);
             
-            // Always show text visualization if we have processed tokens
             if (result.processed_tokens_for_attention && result.processed_tokens_for_attention.length > 0) {
-                // Pass attention threshold (0.3) - only tokens with attention > 0.3 will be highlighted
                 highlightTextWithAttention(result.processed_tokens_for_attention, result.attention_weights, 0.8);
             } else {
                 textVisualization.style.display = 'none';
@@ -141,10 +134,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Optional: Live word count
+    // Live word count
     textInput.addEventListener('input', () => {
         const text = textInput.value;
         const words = text.trim().split(/\s+/).filter(word => word.length > 0);
-        wordCountSpan.textContent = words.length; // Or update from backend response
+        wordCountSpan.textContent = words.length;
     });
 });

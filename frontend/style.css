@@ -179,7 +179,7 @@ button:hover {
 
 /* Legend for attention visualization */
 #textVisualization::after {
-    content: "Note: Only words with attention weights > 30% are highlighted. Darker highlighting indicates higher contribution to deceptive classification.";
+    content: "Note: Only words with attention weights > 80% are highlighted. Darker highlighting indicates higher contribution to deceptive classification.";
     display: block;
     margin-top: 10px;
     font-size: 0.85em;
@@ -187,7 +187,7 @@ button:hover {
     font-style: italic;
 }
 
-/* 響應式設計 */
+/* Responsive design */
 @media (max-width: 768px) {
     .main-content {
         flex-direction: column;

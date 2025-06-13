@@ -39,7 +39,7 @@ except nltk.downloader.DownloadError:
 # --- Model and Training Hyperparameters ---
 EMBEDDING_DIM = 300
 HIDDEN_DIM = 256
-OUTPUT_DIM = 2  # Truthful, Deceptive
+OUTPUT_DIM = 2
 N_LAYERS = 2
 BIDIRECTIONAL = True
 DROPOUT = 0.4
@@ -79,7 +79,7 @@ def build_vocab(texts: List[str], min_freq: int = 2) -> Dict[str, int]:
     return vocab
 
 # --- FastAPI Application ---
-app = FastAPI(title="Deceptive Text Detection API (Imported Model)")
+app = FastAPI(title="Deceptive Text Detection API")
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
@@ -121,7 +121,7 @@ def extract_suspicious_keywords(tokens: List[str], attention_weights: List[float
     return word_weights[:10]  # Return top 10 suspicious words
 
 def _load_model_and_vocab_from_path(model_path: str, data_path: str) -> Tuple[PosAttBiLSTM, Dict[str, int]]:
-    """Internal function to load the model and vocabulary."""
+    """Load model and vocabulary from file paths."""
     global device, loaded_models_vocabs
 
     cache_key = (model_path, data_path)
@@ -184,7 +184,7 @@ def _load_model_and_vocab_from_path(model_path: str, data_path: str) -> Tuple[Po
 
 @app.on_event("startup")
 async def startup_event():
-    """Preload the default model on application startup (optional)."""
+    """Preload the default model on application startup."""
     default_model_path = 'best_model.pt'
     default_data_path = 'deceptive-opinion-merge-new-2.csv'
     print("FastAPI application startup...")
@@ -217,9 +217,8 @@ async def detect_spam(item: TextInput):
         current_model.eval()
         processed_text_str = preprocess_text(item.text)
         tokens = processed_text_str.split()
-        # logging the length of tokens
         print(f"Processed text tokens: {tokens} (count: {len(tokens)})")
-        original_tokens_for_attention = tokens.copy()  # These are the tokens attention weights correspond to
+        original_tokens_for_attention = tokens.copy()
         token_ids = [current_vocab.get(token, current_vocab['<UNK>']) for token in tokens]
 
         # Pad or truncate sequence
@@ -239,7 +238,7 @@ async def detect_spam(item: TextInput):
             probabilities_tensor = torch.softmax(output, dim=1)
             prediction_index = torch.argmax(probabilities_tensor, dim=1).item()
 
-            # Extract attention weights from the model
+            # Extract attention weights from model
             # We need to modify the forward pass to also return attention weights
             embedded = current_model.embedding(input_tensor)
             embedded = current_model.pos_encoding(embedded)
@@ -259,16 +258,15 @@ async def detect_spam(item: TextInput):
         predicted_label = "Deceptive" if prediction_index == 1 else "Truthful"
         probabilities_list = probabilities_tensor.cpu().numpy()[0].tolist()
         
-        # Extract suspicious keywords using padded tokens for model consistency
+        # Extract suspicious keywords
         suspicious_keywords = extract_suspicious_keywords(
             padded_tokens, 
             attention_weights.tolist(), 
-            threshold=0.9  # Adjust threshold as needed
+            threshold=0.9
         )
         
-        print(f"Suspicious Keywords: {suspicious_keywords} weighted by attention: {attention_weights.tolist()}")
+        print(f"Suspicious Keywords: {suspicious_keywords}")
         
-        # Ensure attention_weights correspond to original_tokens_for_attention (unpadded, processed)
         final_attention_weights = attention_weights[:len(original_tokens_for_attention)].tolist()
         
         return PredictionOutput(
@@ -307,5 +305,7 @@ async def detect_spam(item: TextInput):
 # 6. See auto-generated API docs at http://127.0.0.1:8000/docs
 
 if __name__ == "__main__":
+    print("To run this application, use: uvicorn inference_api:app --reload")
+    print(f"Using device: {device}")
     print("To run this application, use Uvicorn: uvicorn fastapi_inference_app:app --reload")
     print(f"Using device: {device}")
