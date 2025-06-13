@@ -99,6 +99,7 @@ class PredictionOutput(BaseModel):
     word_count: int
     suspicious_keywords: List[Dict[str, float]]  # List of {word: score}
     attention_weights: List[float]  # Attention weights for each word
+    processed_tokens_for_attention: List[str]  # Tokens corresponding to attention_weights
 
 def extract_suspicious_keywords(tokens: List[str], attention_weights: List[float], threshold: float = 0.1) -> List[Dict[str, float]]:
     """Extract keywords with high attention weights as suspicious."""
@@ -203,7 +204,8 @@ async def detect_spam(item: TextInput):
             spam_probability=0.0, 
             word_count=0, 
             suspicious_keywords=[], 
-            attention_weights=[]
+            attention_weights=[],
+            processed_tokens_for_attention=[]
         )
     
     word_count = len(item.text.split())
@@ -215,7 +217,9 @@ async def detect_spam(item: TextInput):
         current_model.eval()
         processed_text_str = preprocess_text(item.text)
         tokens = processed_text_str.split()
-        original_tokens = tokens.copy()  # Keep original tokens for keyword extraction
+        # logging the length of tokens
+        print(f"Processed text tokens: {tokens} (count: {len(tokens)})")
+        original_tokens_for_attention = tokens.copy()  # These are the tokens attention weights correspond to
         token_ids = [current_vocab.get(token, current_vocab['<UNK>']) for token in tokens]
 
         # Pad or truncate sequence
@@ -255,18 +259,24 @@ async def detect_spam(item: TextInput):
         predicted_label = "Deceptive" if prediction_index == 1 else "Truthful"
         probabilities_list = probabilities_tensor.cpu().numpy()[0].tolist()
         
-        # Extract suspicious keywords
+        # Extract suspicious keywords using padded tokens for model consistency
         suspicious_keywords = extract_suspicious_keywords(
             padded_tokens, 
             attention_weights.tolist(), 
             threshold=0.9  # Adjust threshold as needed
         )
         
+        print(f"Suspicious Keywords: {suspicious_keywords} weighted by attention: {attention_weights.tolist()}")
+        
+        # Ensure attention_weights correspond to original_tokens_for_attention (unpadded, processed)
+        final_attention_weights = attention_weights[:len(original_tokens_for_attention)].tolist()
+        
         return PredictionOutput(
             spam_probability=probabilities_list[1], 
             word_count=word_count,
             suspicious_keywords=suspicious_keywords,
-            attention_weights=attention_weights[:len(original_tokens)].tolist()  # Only return weights for actual tokens
+            attention_weights=final_attention_weights,
+            processed_tokens_for_attention=original_tokens_for_attention
         )
 
     except FileNotFoundError as e:

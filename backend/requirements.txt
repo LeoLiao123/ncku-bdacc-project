@@ -2,5 +2,6 @@ torch
 pandas
 nltk
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
+python-multipart

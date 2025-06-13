@@ -38,30 +38,30 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function highlightTextWithAttention(originalText, attentionWeights) {
-        if (!attentionWeights || attentionWeights.length === 0) {
+    function highlightTextWithAttention(processedTokens, attentionWeights, attentionThreshold = 0.3) {
+        if (!processedTokens || processedTokens.length === 0) {
             textVisualization.style.display = 'none';
             return;
         }
 
-        const words = originalText.trim().split(/\s+/);
-        const minLength = Math.min(words.length, attentionWeights.length);
-        
         let highlightedHTML = '';
-        for (let i = 0; i < minLength; i++) {
-            const word = words[i];
-            const weight = attentionWeights[i];
+        for (let i = 0; i < processedTokens.length; i++) {
+            const word = processedTokens[i];
+            let backgroundColor = 'transparent';
             
-            // Calculate background color intensity
-            const intensity = Math.min(weight, 1);
-            const backgroundColor = `rgba(255, 99, 71, ${intensity * 0.7})`;
+            if (attentionWeights && i < attentionWeights.length) {
+                const weight = attentionWeights[i];
+                // Ensure weight is a number and not NaN
+                const validWeight = (typeof weight === 'number' && !isNaN(weight)) ? weight : 0;
+                
+                // Only highlight if this specific token's attention weight exceeds threshold
+                if (validWeight > attentionThreshold) {
+                    const intensity = Math.min(validWeight, 1); 
+                    backgroundColor = `rgba(255, 99, 71, ${intensity * 0.7})`;
+                }
+            }
             
             highlightedHTML += `<span class="attention-word" style="background-color: ${backgroundColor}; padding: 2px 4px; margin: 1px; border-radius: 3px;">${word}</span> `;
-        }
-        
-        // Add remaining words without highlighting
-        for (let i = minLength; i < words.length; i++) {
-            highlightedHTML += `<span>${words[i]}</span> `;
         }
         
         highlightedText.innerHTML = highlightedHTML;
@@ -124,9 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Display suspicious keywords
             displaySuspiciousKeywords(result.suspicious_keywords);
             
-            // Highlight text with attention weights (only show if probability > 0.3)
-            if (result.spam_probability > 0.4) {
-                highlightTextWithAttention(text, result.attention_weights);
+            // Always show text visualization if we have processed tokens
+            if (result.processed_tokens_for_attention && result.processed_tokens_for_attention.length > 0) {
+                // Pass attention threshold (0.3) - only tokens with attention > 0.3 will be highlighted
+                highlightTextWithAttention(result.processed_tokens_for_attention, result.attention_weights, 0.8);
             } else {
                 textVisualization.style.display = 'none';
             }
