@@ -92,11 +92,32 @@ app.add_middleware(
 class TextInput(BaseModel):
     text: str
     model_path: str = 'best_model.pt'  # Default model path
-    data_path: str = 'deceptive-opinion-merge-3.csv'  # Default data path for vocabulary
+    data_path: str = 'deceptive-opinion-merge-new-2.csv'  # Default data path for vocabulary
 
 class PredictionOutput(BaseModel):
     spam_probability: float
     word_count: int
+    suspicious_keywords: List[Dict[str, float]]  # List of {word: score}
+    attention_weights: List[float]  # Attention weights for each word
+
+def extract_suspicious_keywords(tokens: List[str], attention_weights: List[float], threshold: float = 0.1) -> List[Dict[str, float]]:
+    """Extract keywords with high attention weights as suspicious."""
+    if len(tokens) != len(attention_weights):
+        # Pad or truncate to match
+        min_len = min(len(tokens), len(attention_weights))
+        tokens = tokens[:min_len]
+        attention_weights = attention_weights[:min_len]
+    
+    # Create list of word-weight pairs
+    word_weights = []
+    for token, weight in zip(tokens, attention_weights):
+        if weight > threshold and token not in ['<PAD>', '<UNK>']:
+            word_weights.append({token: float(weight)})
+    
+    # Sort by weight (descending)
+    word_weights.sort(key=lambda x: list(x.values())[0], reverse=True)
+    
+    return word_weights[:10]  # Return top 10 suspicious words
 
 def _load_model_and_vocab_from_path(model_path: str, data_path: str) -> Tuple[PosAttBiLSTM, Dict[str, int]]:
     """Internal function to load the model and vocabulary."""
@@ -164,7 +185,7 @@ def _load_model_and_vocab_from_path(model_path: str, data_path: str) -> Tuple[Po
 async def startup_event():
     """Preload the default model on application startup (optional)."""
     default_model_path = 'best_model.pt'
-    default_data_path = 'deceptive-opinion-merge-3.csv'
+    default_data_path = 'deceptive-opinion-merge-new-2.csv'
     print("FastAPI application startup...")
     print(f"Attempting to preload model from: {default_model_path} and vocab from: {default_data_path}")
     try:
@@ -178,35 +199,75 @@ async def startup_event():
 @app.post("/detect_spam", response_model=PredictionOutput)
 async def detect_spam(item: TextInput):
     if not item.text.strip():
-        return SpamResponse(spam_probability=0.0, word_count=0, explanation="Input text is empty.")
+        return PredictionOutput(
+            spam_probability=0.0, 
+            word_count=0, 
+            suspicious_keywords=[], 
+            attention_weights=[]
+        )
+    
     word_count = len(item.text.split())
     
     global device
     try:
         current_model, current_vocab = _load_model_and_vocab_from_path(item.model_path, item.data_path)
         
-        current_model.eval()  # Ensure model is in evaluation mode
+        current_model.eval()
         processed_text_str = preprocess_text(item.text)
         tokens = processed_text_str.split()
+        original_tokens = tokens.copy()  # Keep original tokens for keyword extraction
         token_ids = [current_vocab.get(token, current_vocab['<UNK>']) for token in tokens]
 
         # Pad or truncate sequence
         if len(token_ids) < DEFAULT_MAX_LEN:
+            # Pad tokens list as well
+            padded_tokens = tokens + ['<PAD>'] * (DEFAULT_MAX_LEN - len(token_ids))
             token_ids.extend([current_vocab['<PAD>']] * (DEFAULT_MAX_LEN - len(token_ids)))
         else:
+            padded_tokens = tokens[:DEFAULT_MAX_LEN]
             token_ids = token_ids[:DEFAULT_MAX_LEN]
 
         input_tensor = torch.LongTensor(token_ids).unsqueeze(0).to(device)
 
         with torch.no_grad():
+            # Forward pass
             output = current_model(input_tensor)
             probabilities_tensor = torch.softmax(output, dim=1)
             prediction_index = torch.argmax(probabilities_tensor, dim=1).item()
 
+            # Extract attention weights from the model
+            # We need to modify the forward pass to also return attention weights
+            embedded = current_model.embedding(input_tensor)
+            embedded = current_model.pos_encoding(embedded)
+            embedded = current_model.dropout(embedded)
+            
+            lstm_output, _ = current_model.bilstm(embedded)
+            reduced_output = current_model.dim_reduction(lstm_output)
+            attended = current_model.hybrid_attention(reduced_output)
+            
+            # Calculate attention weights (sum across hidden dimensions)
+            attention_weights = torch.mean(torch.abs(attended), dim=2).squeeze(0).cpu().numpy()
+            
+            # Normalize attention weights
+            if attention_weights.max() > 0:
+                attention_weights = attention_weights / attention_weights.max()
+
         predicted_label = "Deceptive" if prediction_index == 1 else "Truthful"
         probabilities_list = probabilities_tensor.cpu().numpy()[0].tolist()
         
-        return PredictionOutput(spam_probability = probabilities_list[1], word_count=word_count)
+        # Extract suspicious keywords
+        suspicious_keywords = extract_suspicious_keywords(
+            padded_tokens, 
+            attention_weights.tolist(), 
+            threshold=0.9  # Adjust threshold as needed
+        )
+        
+        return PredictionOutput(
+            spam_probability=probabilities_list[1], 
+            word_count=word_count,
+            suspicious_keywords=suspicious_keywords,
+            attention_weights=attention_weights[:len(original_tokens)].tolist()  # Only return weights for actual tokens
+        )
 
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -227,7 +288,7 @@ async def detect_spam(item: TextInput):
 #    {
 #        "text": "This is a wonderful product, highly recommended!",
 #        "model_path": "best_model.pt",
-#        "data_path": "deceptive-opinion-merge-3.csv"
+#        "data_path": "deceptive-opinion-merge-new-2.csv"
 #    }
 #    Or just the text (default paths will be used):
 #    {

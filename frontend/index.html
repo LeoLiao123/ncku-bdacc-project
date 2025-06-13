@@ -9,16 +9,40 @@
 <body>
     <div class="container">
         <h1>Deceptive Text Detector</h1>
-        <textarea id="textInput" placeholder="Enter text here..."></textarea>
-        <button id="detectButton">Detect Deceptive Text</button>
-        <div id="resultArea">
-            <h2>Result</h2>
-            <p>Deceptive Probability: <span id="spamPercentage">--</span>%</p>
-            <p>Deceptive Likelihood: <span id="spamProbabilityDescription">--</span></p>
-            <p>Word Count: <span id="wordCount">--</span></p>
+        
+        <div class="main-content">
+            <!-- 左側輸入區域 -->
+            <div class="input-section">
+                <div class="input-area">
+                    <textarea id="textInput" placeholder="Enter text here..."></textarea>
+                    <button id="detectButton">Detect Deceptive Text</button>
+                </div>
+            </div>
+            
+            <!-- 右側結果區域 -->
+            <div class="result-section">
+                <div id="resultArea">
+                    <h2>Result</h2>
+                    <p>Deceptive Probability: <span id="spamPercentage">--</span>%</p>
+                    <p>Deceptive Likelihood: <span id="spamProbabilityDescription">--</span></p>
+                    <p>Word Count: <span id="wordCount">--</span></p>
+                    
+                    <!-- New section for suspicious keywords -->
+                    <div id="keywordsSection" style="display: none;">
+                        <h3>Suspicious Keywords</h3>
+                        <div id="keywordsList"></div>
+                    </div>
+                    
+                    <!-- New section for text visualization -->
+                    <div id="textVisualization" style="display: none;">
+                        <h3>Text Analysis</h3>
+                        <div id="highlightedText"></div>
+                    </div>
+                </div>
+                <div id="loadingIndicator" style="display: none;">Analyzing, please wait...</div>
+                <div id="errorArea" style="display: none; color: red;"></div>
+            </div>
         </div>
-        <div id="loadingIndicator" style="display: none;">Analyzing, please wait...</div>
-        <div id="errorArea" style="display: none; color: red;"></div>
     </div>
     <script src="script.js"></script>
 </body>

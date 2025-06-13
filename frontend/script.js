@@ -6,9 +6,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingIndicator = document.getElementById('loadingIndicator');
     const errorArea = document.getElementById('errorArea');
     const spamProbabilityDescription = document.getElementById('spamProbabilityDescription');
+    const keywordsSection = document.getElementById('keywordsSection');
+    const keywordsList = document.getElementById('keywordsList');
+    const textVisualization = document.getElementById('textVisualization');
+    const highlightedText = document.getElementById('highlightedText');
 
     // Backend API URL
     const backendUrl = 'http://localhost:8000/detect_spam';
+
+    function displaySuspiciousKeywords(keywords) {
+        if (keywords && keywords.length > 0) {
+            keywordsList.innerHTML = '';
+            keywords.forEach(keywordObj => {
+                const word = Object.keys(keywordObj)[0];
+                const score = Object.values(keywordObj)[0];
+                
+                const keywordElement = document.createElement('span');
+                keywordElement.className = 'keyword-tag';
+                keywordElement.textContent = `${word} (${(score * 100).toFixed(1)}%)`;
+                
+                // Color intensity based on score
+                const intensity = Math.min(score * 2, 1); // Scale for better visibility
+                keywordElement.style.backgroundColor = `rgba(255, 99, 71, ${intensity})`;
+                keywordElement.style.color = intensity > 0.5 ? 'white' : 'black';
+                
+                keywordsList.appendChild(keywordElement);
+            });
+            keywordsSection.style.display = 'block';
+        } else {
+            keywordsSection.style.display = 'none';
+        }
+    }
+
+    function highlightTextWithAttention(originalText, attentionWeights) {
+        if (!attentionWeights || attentionWeights.length === 0) {
+            textVisualization.style.display = 'none';
+            return;
+        }
+
+        const words = originalText.trim().split(/\s+/);
+        const minLength = Math.min(words.length, attentionWeights.length);
+        
+        let highlightedHTML = '';
+        for (let i = 0; i < minLength; i++) {
+            const word = words[i];
+            const weight = attentionWeights[i];
+            
+            // Calculate background color intensity
+            const intensity = Math.min(weight, 1);
+            const backgroundColor = `rgba(255, 99, 71, ${intensity * 0.7})`;
+            
+            highlightedHTML += `<span class="attention-word" style="background-color: ${backgroundColor}; padding: 2px 4px; margin: 1px; border-radius: 3px;">${word}</span> `;
+        }
+        
+        // Add remaining words without highlighting
+        for (let i = minLength; i < words.length; i++) {
+            highlightedHTML += `<span>${words[i]}</span> `;
+        }
+        
+        highlightedText.innerHTML = highlightedHTML;
+        textVisualization.style.display = 'block';
+    }
 
     detectButton.addEventListener('click', async () => {
         const text = textInput.value;
@@ -22,8 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
         wordCountSpan.textContent = '--';
         errorArea.textContent = '';
         errorArea.style.display = 'none';
-        loadingIndicator.style.display = 'block'; // Show loading indicator
-        detectButton.disabled = true; // Disable button
+        keywordsSection.style.display = 'none';
+        textVisualization.style.display = 'none';
+        loadingIndicator.style.display = 'block';
+        detectButton.disabled = true;
 
         try {
             const response = await fetch(backendUrl, {
@@ -34,8 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ text: text }),
             });
 
-            loadingIndicator.style.display = 'none'; // Hide loading indicator
-            detectButton.disabled = false; // Enable button
+            loadingIndicator.style.display = 'none';
+            detectButton.disabled = false;
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ detail: 'Failed to parse error response' }));
@@ -51,22 +111,30 @@ document.addEventListener('DOMContentLoaded', () => {
             let description = '';
             if (result.spam_probability >= 0.5) {
                 description = 'High probability';
-                spamPercentageSpan.style.color = 'red'; // Set probability to red
-                spamPercentageSpan.style.fontWeight = 'bold'; // Bold
+                spamPercentageSpan.style.color = 'red';
+                spamPercentageSpan.style.fontWeight = 'bold';
             } else {
                 description = 'Safe';
-                spamPercentageSpan.style.color = 'green'; // Set probability to green
-                spamPercentageSpan.style.fontWeight = 'normal'; // Restore default weight
+                spamPercentageSpan.style.color = 'green';
+                spamPercentageSpan.style.fontWeight = 'normal';
             }
 
-            spamPercentageSpan.textContent = (result.spam_probability * 100).toFixed(2);
             spamProbabilityDescription.textContent = description;
-            wordCountSpan.textContent = result.word_count;
+
+            // Display suspicious keywords
+            displaySuspiciousKeywords(result.suspicious_keywords);
+            
+            // Highlight text with attention weights (only show if probability > 0.3)
+            if (result.spam_probability > 0.4) {
+                highlightTextWithAttention(text, result.attention_weights);
+            } else {
+                textVisualization.style.display = 'none';
+            }
 
         } catch (error) {
             console.error('Detection failed:', error);
-            loadingIndicator.style.display = 'none'; // Hide loading indicator
-            detectButton.disabled = false; // Enable button
+            loadingIndicator.style.display = 'none';
+            detectButton.disabled = false;
             errorArea.textContent = `Detection failed: ${error.message}`;
             errorArea.style.display = 'block';
         }
