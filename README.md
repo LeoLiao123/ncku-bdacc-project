@@ -4,7 +4,9 @@ A web-based system for detecting deceptive text using a PosAtt-BiLSTM model with
 
 ## Quick Start
 
-Note : Please clone the repository and navigate to the project directory.
+### Note 
+1. Please clone the repository and navigate to the project directory.
+2. You need to put the `deceptive-opinion-merge-new-2.csv` and `best_model.pt` in the backend directory to run the backend. [Download the dataset and model](https://drive.google.com/drive/folders/1rL9BFK-RE6nqTIfqVX75D6TiroIE6zVy?usp=sharing).
 
 ### Backend Setup
 
