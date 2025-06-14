@@ -370,17 +370,17 @@ def main():
         test_size = 0.2
         
     train_texts, temp_texts, train_labels, temp_labels = train_test_split(
-        texts, labels, test_size=test_size, random_state=42, stratify=labels
+        texts, labels, test_size=test_size, random_state=8675, stratify=labels
     )
 
     if "Yelp" in args.data_path:
         val_size = 0.1
         val_texts, test_texts, val_labels, test_labels = train_test_split(
-            temp_texts, temp_labels, test_size=0.5, random_state=42, stratify=temp_labels
+            temp_texts, temp_labels, test_size=0.5, random_state=8675, stratify=temp_labels
         )
     else:
         train_texts, val_texts, train_labels, val_labels = train_test_split(
-            train_texts, train_labels, test_size=0.1, random_state=42, stratify=train_labels
+            train_texts, train_labels, test_size=0.1, random_state=8675, stratify=train_labels
         )
         test_texts, test_labels = temp_texts, temp_labels
     
