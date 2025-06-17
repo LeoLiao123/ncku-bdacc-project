@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const intensity = Math.min(score * 2, 1);
                 keywordElement.style.backgroundColor = `rgba(255, 99, 71, ${intensity})`;
-                keywordElement.style.color = intensity > 0.5 ? 'white' : 'black';
+                keywordElement.style.color = intensity > 0.6 ? 'white' : 'black';
                 
                 keywordsList.appendChild(keywordElement);
             });
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Determine probability description
             let description = '';
-            if (result.spam_probability >= 0.5) {
+            if (result.spam_probability >= 0.6) {
                 description = 'High probability';
                 spamPercentageSpan.style.color = 'red';
                 spamPercentageSpan.style.fontWeight = 'bold';
