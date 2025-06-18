@@ -5,4 +5,4 @@ llm_api.py
 *.csv
 test_deceptive_detection.py
 *.sh
-*Identifier
+*.Identifier
